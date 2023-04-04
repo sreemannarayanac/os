@@ -1,12 +1,5 @@
 #include <stdio.h>
 
-void printTable(int at[], int bt[], int wt[], int tat[], int n) {
-    printf("\nProcess No\tArrival Time\tBurst Time\tTAT\t\tWaiting Time\n");
-    for (int i = 0; i < n; i++) {
-        printf("%d\t\t%d\t\t%d\t\t%d\t\t%d\n", i + 1, at[i], bt[i], tat[i], wt[i]);
-    }
-}
-
 void main() {
     int i, NOP, sum = 0, count = 0, y, quant, wt = 0, tat = 0, at[10], bt[10], temp[10];
     float avg_wt, avg_tat;
@@ -58,6 +51,4 @@ void main() {
 
     printf("\nAverage waiting time: %f", avg_wt);
     printf("\nAverage turnaround time: %f", avg_tat);
-
-    printTable(at, bt, wt, tat, NOP);
 }
