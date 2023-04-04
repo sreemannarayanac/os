@@ -1,261 +1,91 @@
-// // Producer Consumer Problem in simple and easy way
-
-// #include <stdio.h>
-// #include <stdlib.h>
-// #include <unistd.h>
-// #include <pthread.h>
-
-// #define MAX 10
-
-// int buffer[MAX];
-// int fill = 0;
-// int use = 0;
-// int count = 0;
-
-// void put(int value)
-// {
-//     buffer[fill] = value;
-//     fill = (fill + 1) % MAX;
-//     count++;
-// }
-
-// int get()
-// {
-//     int tmp = buffer[use];
-//     use = (use + 1) % MAX;
-//     count--;
-//     return tmp;
-// }
-
-// void *producer(void *arg)
-// {
-//     int i;
-//     for (i = 0; i < 20; i++)
-//     {
-//         // print the buffer
-//         printf("\nBuffer: ");
-//         for (int j = 0; j < MAX; j++)
-//         {
-//             printf("%d ", buffer[j]);
-//         }
-//         printf("\n");
-//         while (count == MAX)
-//             ;
-//         put(i);
-//     }
-// }
-
-// void *consumer(void *arg)
-// {
-//     int i;
-//     for (i = 0; i < 20; i++)
-//     {
-//         while (count == 0)
-//             ;
-//         printf("\nGot %d", get());
-//     }
-// }
-
-// int main()
-// {
-//     pthread_t p, c;
-//     pthread_create(&p, NULL, producer, NULL); // this is used to create a thread, this thread will execute the function producer
-//     pthread_create(&c, NULL, consumer, NULL); // this is used to create a thread, this thread will execute the function consumer
-//     pthread_join(p, NULL); // this is used to wait for the thread to finish
-//     pthread_join(c, NULL); // this is used to wait for the thread to finish
-//     return 0;
-// }
-
-// #include <stdio.h>
-// #include <stdlib.h>
-// #include <sys/wait.h>
-// #include <unistd.h>
-
-// // Semaphore variable S
-// int S = 1;
-
-// // empty and full variables
-// int empty = 10, full = 0;
-
-// // buffer array
-// int buffer[10];
-
-// // in and out variables
-// int in = 0, out = 0;
-
-// // wait function
-// void _wait(int *S)
-// {
-//     while (*S <= 0)
-//         ;
-//     *S = *S - 1;
-// }
-
-// // signal function
-// void _signal(int *S)
-// {
-//     *S = *S + 1;
-// }
-
-// // produce item function
-// void produce_item()
-// {
-//     int item = rand() % 100;
-//     printf("\nProduced item: %d", item);
-//     // insert item into buffer
-//     buffer[in] = item;
-//     in = (in + 1) % 10;
-// }
-
-// // producer function
-// void producer()
-// {
-//     _wait(&empty);
-//     _wait(&S);
-//     produce_item();
-//     _signal(&S);
-//     _signal(&full);
-// }
-
-// // consume item function
-// void consume_item()
-// {
-//     int item = buffer[out];
-//     printf("\nConsumed item: %d", item);
-//     out = (out + 1) % 10;
-// }
-
-// // consumer function
-// void consumer()
-// {
-//     _wait(&full);
-//     _wait(&S);
-//     consume_item();
-//     _signal(&S);
-//     _signal(&empty);
-// }
-
-// int main()
-// {
-//     int pid = fork();
-//     if (pid == 0)
-//     {
-//         // child process
-//         while (1)
-//         {
-//             producer();
-//         }
-//     }
-//     else
-//     {
-//         // parent process
-//         while (1)
-//         {
-//             consumer();
-//         }
-//         _wait(NULL);
-//     }
-//     return 0;
-// }
-
 #include <stdio.h>
 #include <stdlib.h>
-#include <sys/wait.h>
-#include <unistd.h>
-#include <string.h>
+#include <semaphore.h>
 
-// Semaphore variable S
-int S = 1;
+#define BUFFER_SIZE 5
+int buffer[BUFFER_SIZE];
 
-// empty and full variables
-int empty = 10, full = 0;
+int count = 0;     // Number of items in the buffer
+int in = 0;        // Index for next item to be inserted
+int out = 0;       // Index for next item to be removed
+sem_t mutex;       // Semaphore for mutual exclusion
+sem_t empty_slots; // Semaphore for keeping track of empty slots in the buffer
+sem_t full_slots; // Semaphore for keeping track of full slots in the buffer
 
-// buffer array
-int buffer[10];
-
-// in and out variables
-int in = 0, out = 0;
-
-// wait function
-void _wait(int *S)
+// Function for producing an item and inserting it into the buffer
+void produce(int item)
 {
-    while (*S <= 0)
-        ;
-    *S = *S - 1;
-}
-
-// signal function
-void _signal(int *S)
-{
-    *S = *S + 1;
-}
-
-// produce item function
-void produce_item()
-{
-    int item = rand() % 100;
-    printf("\nProduced item: %d", item);
-    // insert item into buffer
+    sem_wait(&empty_slots);
+    sem_wait(&mutex);
     buffer[in] = item;
-    in = (in + 1) % 10;
+    in = (in + 1) % BUFFER_SIZE;
+    count++;
+    sem_post(&mutex);
+    sem_post(&full_slots);
 }
-
-// producer function
-void producer()
+// Function for consuming an item from the buffer
+int consume()
 {
-    static int count = 0;
-    if (count < 100) {
-        _wait(&empty);
-        _wait(&S);
-        produce_item();
-        _signal(&S);
-        _signal(&full);
-        count++;
-    } else {
-        exit(0);
-    }
-}
+    sem_wait(&full_slots);
+    sem_wait(&mutex);
 
-// consume item function
-void consume_item()
-{
     int item = buffer[out];
-    printf("\nConsumed item: %d", item);
-    out = (out + 1) % 10;
+    out = (out + 1) % BUFFER_SIZE;
+    count--;
+    sem_post(&mutex);
+    sem_post(&empty_slots);
+    return item;
 }
-
-// consumer function
-void consumer()
-{
-    _wait(&full);
-    _wait(&S);
-    consume_item();
-    _signal(&S);
-    _signal(&empty);
-}
-
 int main()
 {
-    // Initialize buffer to 0
-    memset(buffer, 0, sizeof(buffer));
-
-    int pid = fork();
-    if (pid == 0)
+    int choice;
+    int item;
+    // Initialize semaphores
+    sem_init(&mutex, 0, 1);
+    sem_init(&empty_slots, 0, BUFFER_SIZE);
+    sem_init(&full_slots, 0, 0);
+    // Run loop to allow user to produce or consume items
+    do
     {
-        // child process
-        while (1)
+        printf("\nSelect an option:\n");
+        printf("1. Produce item\n");
+        printf("2. Consume item\n");
+        printf("0. Exit\n");
+        printf("Enter your choice: ");
+        scanf("%d", &choice);
+        switch (choice)
         {
-            producer();
+        case 1:
+            printf("Enter item to produce: ");
+            scanf("%d", &item);
+            if (count == BUFFER_SIZE)
+            {
+                printf("Buffer is full. Cannot produce moreitems.\n");
+                break;
+            }
+            produce(item);
+            printf("Produced %d\n", item);
+            break;
+        case 2:
+            if (count == 0)
+            {
+                printf("Buffer is empty. Cannot consume more items.\n"); 
+                break;
+            }
+            item = consume();
+            printf("Consumed %d\n", item);
+            break;
+        case 0:
+            printf("Exiting...\n");
+            break;
+        default:
+            printf("Invalid choice. Please try again.\n");
+            break;
         }
-    }
-    else
-    {
-        // parent process
-        while (1)
-        {
-            consumer();
-        }
-        wait(NULL);
-    }
+    } while (choice != 0);
+    // Clean up semaphores
+    sem_destroy(&mutex);
+    sem_destroy(&empty_slots);
+    sem_destroy(&full_slots);
     return 0;
 }
