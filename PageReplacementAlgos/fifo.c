@@ -31,22 +31,24 @@ void fifo(int n_pages, int *pages) {
     n_frames = 0;
     n_page_faults = 0;
     int oldest_index = 0;
-    for (int i = 0; i < n_pages; i++) {
-        int page = pages[i];
-        if (find_page_index(page, n_frames, frames) == -1) {
+    for (int i = 0; i < n_pages; i++) { // looping to go from the first page to the last page
+        int page = pages[i]; // temporarily storing pages[i]
+        if (find_page_index(page, n_frames, frames) == -1) { // checking if the page is present in the frames
             if (n_frames < MAX_FRAMES) {
-                frames[n_frames++] = page;
+                frames[n_frames++] = page; // assigning the page to a frame
             } else {
-                frames[oldest_index++] = page;
+                frames[oldest_index++] = page; // assigning the page to a frame
                 if (oldest_index == MAX_FRAMES) {
                     oldest_index = 0;
                 }
             }
-            n_page_faults++;
+            n_page_faults++; // incrementing page faults count as the page is not present in frames
         }
         print_frames();
     }
-    printf("Total Page Faults: %d\n\n", n_page_faults);
+    printf("Total Page Faults: %d\n", n_page_faults);
+    printf("Total Pages: %d\n", n_pages);
+    printf("Page Fault Ratio: %.2f\n\n", ((float)n_page_faults)/((float)n_pages));
 }
 
 int main( ) {
